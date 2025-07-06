@@ -1,6 +1,10 @@
 {
   "name": "nestjs-redis-cache",
-  "version": "1.0.8",
+<<<<<<< Updated upstream
+  "version": "3.0.0",
+=======
+  "version": "3.0.0",
+>>>>>>> Stashed changes
   "description": "A NestJS-compatible Redis caching package with explicit caching decorators",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
