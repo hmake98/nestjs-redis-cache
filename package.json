@@ -1,6 +1,6 @@
 {
   "name": "nestjs-redis-cache",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A NestJS-compatible Redis caching package with explicit caching decorators",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
