@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { RedisService } from './redis.service';
 
@@ -377,10 +378,7 @@ describe('RedisService', () => {
     });
 
     it('should log error on redis error event', () => {
-      const loggerErrorSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'error',
-      );
+      const loggerErrorSpy = jest.spyOn(Logger.prototype, 'error');
       const redis = {
         on: jest.fn((event, cb) => {
           if (event === 'error') {
@@ -389,7 +387,6 @@ describe('RedisService', () => {
           return redis;
         }),
       };
-      // @ts-ignore
       new RedisService(redis);
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         'Redis connection error',
@@ -401,23 +398,14 @@ describe('RedisService', () => {
 
   describe('event handler coverage', () => {
     it('should log on connect, error, close, and reconnecting events', () => {
-      const loggerLogSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'log',
-      );
-      const loggerErrorSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'error',
-      );
-      const loggerWarnSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'warn',
-      );
+      const loggerLogSpy = jest.spyOn(Logger.prototype, 'log');
+      const loggerErrorSpy = jest.spyOn(Logger.prototype, 'error');
+      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn');
       const redis = { on: jest.fn() } as any;
-      const service = new (require('./redis.service').RedisService)(redis);
+      new RedisService(redis);
       // Find the event handlers
       const calls = redis.on.mock.calls;
-      const handlers: Record<string, Function> = {};
+      const handlers: Record<string, (...args: any[]) => void> = {};
       for (const [event, handler] of calls) {
         handlers[event] = handler;
       }
@@ -473,20 +461,11 @@ describe('RedisService', () => {
 
   describe('event handler full branch coverage', () => {
     it('should trigger all event handlers and log appropriately', () => {
-      const loggerLogSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'log',
-      );
-      const loggerErrorSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'error',
-      );
-      const loggerWarnSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'warn',
-      );
+      const loggerLogSpy = jest.spyOn(Logger.prototype, 'log');
+      const loggerErrorSpy = jest.spyOn(Logger.prototype, 'error');
+      const loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn');
       const redis = { on: jest.fn() } as any;
-      const service = new (require('./redis.service').RedisService)(redis);
+      new RedisService(redis);
       const calls = redis.on.mock.calls;
       const handlers = {};
       for (const [event, handler] of calls) {

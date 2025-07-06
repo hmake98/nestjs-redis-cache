@@ -18,4 +18,4 @@ export interface CacheableOptions {
    * Enable JSON serialization
    */
   serialize?: boolean;
-} 
+}

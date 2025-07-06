@@ -13,4 +13,4 @@ export interface RedisConnectionOptions {
   keyPrefix?: string;
   retryDelayOnFailover?: number;
   maxRetriesPerRequest?: number;
-} 
+}

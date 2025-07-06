@@ -39,4 +39,4 @@ export function generatePrefixedCacheKey(
 ): string {
   const baseKey = generateCacheKey(key, scope, moduleName);
   return prefix ? `${prefix}${baseKey}` : baseKey;
-} 
+}

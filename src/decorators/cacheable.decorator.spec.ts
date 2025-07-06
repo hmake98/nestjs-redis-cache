@@ -1,4 +1,5 @@
 import { Cacheable } from './cacheable.decorator';
+import { Logger } from '@nestjs/common';
 
 describe('Cacheable Decorator', () => {
   let mockRedisService: any;
@@ -303,10 +304,7 @@ describe('Cacheable Decorator', () => {
 
   describe('module scope without moduleName', () => {
     it('should warn and fallback to global scope, using global key', async () => {
-      const warnSpy = jest.spyOn(
-        require('@nestjs/common').Logger.prototype,
-        'warn',
-      );
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn');
       const mockMethod = jest.fn().mockResolvedValue('result');
       const mockRedisService = {
         get: jest.fn().mockResolvedValue(null),

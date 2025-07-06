@@ -48,4 +48,4 @@ export interface IRedisService {
    * Decrement a numeric value
    */
   decrement(key: string, amount?: number): Promise<number>;
-} 
+}

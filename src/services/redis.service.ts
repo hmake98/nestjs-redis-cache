@@ -40,7 +40,7 @@ export class RedisService implements IRedisService {
         this.logger.debug(`Key not found: ${key}`);
         return null;
       }
-      
+
       const parsedValue = JSON.parse(value);
       this.logger.debug(`Retrieved key: ${key}`);
       return parsedValue;
@@ -97,7 +97,9 @@ export class RedisService implements IRedisService {
   async keys(pattern: string): Promise<string[]> {
     try {
       const keys = await this.redis.keys(pattern);
-      this.logger.debug(`Retrieved keys with pattern: ${pattern}, count: ${keys.length}`);
+      this.logger.debug(
+        `Retrieved keys with pattern: ${pattern}, count: ${keys.length}`,
+      );
       return keys;
     } catch (error) {
       this.logger.error(`Failed to get keys with pattern: ${pattern}`, error);
@@ -125,7 +127,9 @@ export class RedisService implements IRedisService {
   async expire(key: string, ttl: number): Promise<boolean> {
     try {
       const result = await this.redis.expire(key, ttl);
-      this.logger.debug(`Set TTL for key: ${key}, ttl: ${ttl}, result: ${result}`);
+      this.logger.debug(
+        `Set TTL for key: ${key}, ttl: ${ttl}, result: ${result}`,
+      );
       return result === 1;
     } catch (error) {
       this.logger.error(`Failed to set TTL for key: ${key}`, error);
@@ -139,7 +143,9 @@ export class RedisService implements IRedisService {
   async increment(key: string, amount: number = 1): Promise<number> {
     try {
       const result = await this.redis.incrby(key, amount);
-      this.logger.debug(`Incremented key: ${key}, amount: ${amount}, result: ${result}`);
+      this.logger.debug(
+        `Incremented key: ${key}, amount: ${amount}, result: ${result}`,
+      );
       return result;
     } catch (error) {
       this.logger.error(`Failed to increment key: ${key}`, error);
@@ -153,7 +159,9 @@ export class RedisService implements IRedisService {
   async decrement(key: string, amount: number = 1): Promise<number> {
     try {
       const result = await this.redis.decrby(key, amount);
-      this.logger.debug(`Decremented key: ${key}, amount: ${amount}, result: ${result}`);
+      this.logger.debug(
+        `Decremented key: ${key}, amount: ${amount}, result: ${result}`,
+      );
       return result;
     } catch (error) {
       this.logger.error(`Failed to decrement key: ${key}`, error);
@@ -188,4 +196,4 @@ export class RedisService implements IRedisService {
       this.logger.log('Reconnecting to Redis...');
     });
   }
-} 
+}

@@ -535,12 +535,10 @@ describe('CachingModule', () => {
       expect(result).toBeDefined();
     });
     it('should create async module with factory that returns config with redisUrl and undefined keyPrefix', async () => {
-      const useFactory = jest
-        .fn()
-        .mockResolvedValue({
-          redisUrl: 'redis://localhost:6379',
-          keyPrefix: undefined,
-        });
+      const useFactory = jest.fn().mockResolvedValue({
+        redisUrl: 'redis://localhost:6379',
+        keyPrefix: undefined,
+      });
       const module = CachingModule.forRootAsync({ useFactory });
       const redisProvider = (module.providers as any)?.find(
         (p: any) => p.provide === 'REDIS_CLIENT',
@@ -549,12 +547,10 @@ describe('CachingModule', () => {
       expect(result).toBeDefined();
     });
     it('should create async module with factory that returns config with redisUrl and empty string keyPrefix', async () => {
-      const useFactory = jest
-        .fn()
-        .mockResolvedValue({
-          redisUrl: 'redis://localhost:6379',
-          keyPrefix: '',
-        });
+      const useFactory = jest.fn().mockResolvedValue({
+        redisUrl: 'redis://localhost:6379',
+        keyPrefix: '',
+      });
       const module = CachingModule.forRootAsync({ useFactory });
       const redisProvider = (module.providers as any)?.find(
         (p: any) => p.provide === 'REDIS_CLIENT',
