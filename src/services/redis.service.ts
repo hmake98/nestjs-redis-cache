@@ -1,9 +1,9 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { IRedisService } from '../interfaces/redis-service.interface';
 
 @Injectable()
-export class RedisService implements IRedisService {
+export class RedisService implements IRedisService, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly redis: Redis;
 
@@ -13,12 +13,42 @@ export class RedisService implements IRedisService {
   }
 
   /**
+   * Graceful shutdown for Redis connection
+   */
+  async onModuleDestroy(): Promise<void> {
+    try {
+      this.logger.log('Shutting down Redis connection...');
+      await this.redis.quit();
+      this.logger.log('Redis connection closed gracefully');
+    } catch (error) {
+      this.logger.error('Error during Redis shutdown', error);
+      // Force disconnect if graceful shutdown fails
+      this.redis.disconnect();
+    }
+  }
+
+  /**
    * Set a key-value pair in Redis
    */
   async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
     try {
-      const serializedValue = JSON.stringify(value);
-      if (ttl) {
+      let serializedValue: string;
+      
+      try {
+        serializedValue = JSON.stringify(value);
+      } catch (serializationError) {
+        this.logger.error(`JSON serialization failed for key: ${key}`, serializationError);
+        throw new Error(`Failed to serialize value for key: ${key}`);
+      }
+
+      if (ttl !== undefined) {
+        if (typeof ttl !== 'number' || ttl <= 0) {
+          throw new Error('TTL must be a positive number');
+        }
         await this.redis.setex(key, ttl, serializedValue);
       } else {
         await this.redis.set(key, serializedValue);
@@ -34,6 +64,10 @@ export class RedisService implements IRedisService {
    * Get a value from Redis by key
    */
   async get(key: string): Promise<any> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
     try {
       const value = await this.redis.get(key);
       if (value === null) {
@@ -41,9 +75,14 @@ export class RedisService implements IRedisService {
         return null;
       }
 
-      const parsedValue = JSON.parse(value);
-      this.logger.debug(`Retrieved key: ${key}`);
-      return parsedValue;
+      try {
+        const parsedValue = JSON.parse(value);
+        this.logger.debug(`Retrieved key: ${key}`);
+        return parsedValue;
+      } catch (parseError) {
+        this.logger.error(`JSON parsing failed for key: ${key}`, parseError);
+        throw new Error(`Failed to parse value for key: ${key}`);
+      }
     } catch (error) {
       this.logger.error(`Failed to get key: ${key}`, error);
       throw error;
@@ -54,6 +93,10 @@ export class RedisService implements IRedisService {
    * Delete a key from Redis
    */
   async del(key: string): Promise<number> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
     try {
       const result = await this.redis.del(key);
       this.logger.debug(`Deleted key: ${key}, result: ${result}`);
@@ -68,6 +111,10 @@ export class RedisService implements IRedisService {
    * Check if a key exists in Redis
    */
   async hasKey(key: string): Promise<boolean> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
     try {
       const exists = await this.redis.exists(key);
       this.logger.debug(`Key exists check: ${key}, result: ${exists}`);
@@ -79,22 +126,26 @@ export class RedisService implements IRedisService {
   }
 
   /**
-   * Flush all keys from Redis
+   * Flush all data from Redis
    */
   async flushAll(): Promise<void> {
     try {
       await this.redis.flushall();
-      this.logger.log('Flushed all keys from Redis');
+      this.logger.log('Flushed all Redis data');
     } catch (error) {
-      this.logger.error('Failed to flush all keys', error);
+      this.logger.error('Failed to flush Redis data', error);
       throw error;
     }
   }
 
   /**
-   * Get all keys matching a pattern
+   * Get keys matching a pattern
    */
   async keys(pattern: string): Promise<string[]> {
+    if (!pattern || typeof pattern !== 'string') {
+      throw new Error('Pattern must be a non-empty string');
+    }
+
     try {
       const keys = await this.redis.keys(pattern);
       this.logger.debug(
@@ -111,6 +162,10 @@ export class RedisService implements IRedisService {
    * Get the TTL of a key
    */
   async ttl(key: string): Promise<number> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
     try {
       const ttl = await this.redis.ttl(key);
       this.logger.debug(`TTL for key: ${key}, ttl: ${ttl}`);
@@ -125,6 +180,14 @@ export class RedisService implements IRedisService {
    * Set the TTL of a key
    */
   async expire(key: string, ttl: number): Promise<boolean> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
+    if (typeof ttl !== 'number' || ttl <= 0) {
+      throw new Error('TTL must be a positive number');
+    }
+
     try {
       const result = await this.redis.expire(key, ttl);
       this.logger.debug(
@@ -141,6 +204,14 @@ export class RedisService implements IRedisService {
    * Increment a numeric value
    */
   async increment(key: string, amount: number = 1): Promise<number> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
+    if (typeof amount !== 'number' || !Number.isInteger(amount)) {
+      throw new Error('Amount must be an integer');
+    }
+
     try {
       const result = await this.redis.incrby(key, amount);
       this.logger.debug(
@@ -157,6 +228,14 @@ export class RedisService implements IRedisService {
    * Decrement a numeric value
    */
   async decrement(key: string, amount: number = 1): Promise<number> {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Key must be a non-empty string');
+    }
+
+    if (typeof amount !== 'number' || !Number.isInteger(amount)) {
+      throw new Error('Amount must be an integer');
+    }
+
     try {
       const result = await this.redis.decrby(key, amount);
       this.logger.debug(
@@ -184,6 +263,10 @@ export class RedisService implements IRedisService {
       this.logger.log('Connected to Redis');
     });
 
+    this.redis.on('ready', () => {
+      this.logger.log('Redis client ready');
+    });
+
     this.redis.on('error', (error) => {
       this.logger.error('Redis connection error', error);
     });
@@ -192,8 +275,12 @@ export class RedisService implements IRedisService {
       this.logger.warn('Redis connection closed');
     });
 
-    this.redis.on('reconnecting', () => {
-      this.logger.log('Reconnecting to Redis...');
+    this.redis.on('reconnecting', (delay) => {
+      this.logger.log(`Reconnecting to Redis in ${delay}ms...`);
+    });
+
+    this.redis.on('end', () => {
+      this.logger.warn('Redis connection ended');
     });
   }
 }

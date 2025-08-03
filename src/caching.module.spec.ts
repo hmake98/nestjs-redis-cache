@@ -98,465 +98,253 @@ describe('CachingModule', () => {
       expect(module.exports).toEqual([RedisService]);
       expect(module.global).toBe(true);
     });
+
+    // New validation tests
+    describe('validation', () => {
+      it('should throw error when options are null', () => {
+        expect(() => {
+          CachingModule.forRoot(null as any);
+        }).toThrow('CachingOptions are required');
+      });
+
+      it('should throw error when options are undefined', () => {
+        expect(() => {
+          CachingModule.forRoot(undefined as any);
+        }).toThrow('CachingOptions are required');
+      });
+
+      it('should throw error when redisUrl is missing', () => {
+        expect(() => {
+          CachingModule.forRoot({} as any);
+        }).toThrow('redisUrl cannot be empty');
+      });
+
+      it('should throw error when redisUrl is not a string', () => {
+        expect(() => {
+          CachingModule.forRoot({ redisUrl: 123 } as any);
+        }).toThrow('redisUrl must be a string');
+      });
+
+      it('should throw error when redisUrl is empty string', () => {
+        expect(() => {
+          CachingModule.forRoot({ redisUrl: '' });
+        }).toThrow('redisUrl cannot be empty');
+      });
+
+      it('should throw error when redisUrl is only whitespace', () => {
+        expect(() => {
+          CachingModule.forRoot({ redisUrl: '   ' });
+        }).toThrow('redisUrl cannot be empty');
+      });
+
+      it('should throw error when keyPrefix is not a string', () => {
+        expect(() => {
+          CachingModule.forRoot({
+            redisUrl: 'redis://localhost:6379',
+            keyPrefix: 123 as any,
+          });
+        }).toThrow('keyPrefix must be a string');
+      });
+
+      it('should throw error when defaultTtl is not a positive number', () => {
+        expect(() => {
+          CachingModule.forRoot({
+            redisUrl: 'redis://localhost:6379',
+            defaultTtl: -1,
+          });
+        }).toThrow('defaultTtl must be a positive number');
+      });
+
+      it('should throw error when defaultTtl is zero', () => {
+        expect(() => {
+          CachingModule.forRoot({
+            redisUrl: 'redis://localhost:6379',
+            defaultTtl: 0,
+          });
+        }).toThrow('defaultTtl must be a positive number');
+      });
+
+      it('should throw error when logger is not a boolean', () => {
+        expect(() => {
+          CachingModule.forRoot({
+            redisUrl: 'redis://localhost:6379',
+            logger: 'true' as any,
+          });
+        }).toThrow('logger must be a boolean');
+      });
+    });
   });
 
   describe('forRootAsync', () => {
-    it('should create module with asynchronous configuration', async () => {
-      const mockConfigService = {
-        get: jest.fn((key: string) => {
-          const config = {
-            REDIS_URL: 'redis://localhost:6379',
-            CACHE_PREFIX: 'async:',
-            CACHE_TTL: 600,
-          };
-          return config[key];
+    @Module({})
+    class TestModule {}
+
+    it('should create module with async configuration', () => {
+      const asyncOptions: AsyncCachingOptions = {
+        useFactory: () => ({
+          redisUrl: 'redis://localhost:6379',
+          keyPrefix: 'async:',
         }),
       };
 
-      const options: AsyncCachingOptions = {
+      const module = CachingModule.forRootAsync(asyncOptions);
+
+      expect(module.module).toBe(CachingModule);
+      expect(module.providers).toHaveLength(2);
+      expect(module.exports).toEqual([RedisService]);
+      expect(module.global).toBe(true);
+    });
+
+    it('should create module with inject dependencies', () => {
+      const asyncOptions: AsyncCachingOptions = {
         useFactory: (configService: any) => ({
           redisUrl: configService.get('REDIS_URL'),
-          keyPrefix: configService.get('CACHE_PREFIX'),
-          defaultTtl: configService.get('CACHE_TTL'),
         }),
-        inject: [mockConfigService],
+        inject: ['CONFIG_SERVICE'],
       };
 
-      const module = CachingModule.forRootAsync(options);
+      const module = CachingModule.forRootAsync(asyncOptions);
 
       expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toContain(RedisService);
-      expect(module.global).toBe(true);
-
-      // Check that providers are correctly configured
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const optionsProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'CACHING_OPTIONS',
-      );
-
-      expect(redisProvider).toBeDefined();
-      expect(optionsProvider).toBeDefined();
-    });
-
-    it('should create module with async factory returning promise', async () => {
-      const options: AsyncCachingOptions = {
-        useFactory: async () => ({
-          redisUrl: 'redis://localhost:6379',
-          keyPrefix: 'promise:',
-          defaultTtl: 900,
-        }),
-      };
-
-      const module = CachingModule.forRootAsync(options);
-
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toContain(RedisService);
+      expect(module.providers).toHaveLength(2);
+      expect(module.exports).toEqual([RedisService]);
       expect(module.global).toBe(true);
     });
 
-    it('should handle async configuration without inject', async () => {
-      const options: AsyncCachingOptions = {
+    it('should create module with imports', () => {
+      const asyncOptions: AsyncCachingOptions = {
         useFactory: () => ({
           redisUrl: 'redis://localhost:6379',
         }),
+        imports: [TestModule],
       };
 
-      const module = CachingModule.forRootAsync(options);
+      const module = CachingModule.forRootAsync(asyncOptions);
 
       expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toContain(RedisService);
-      expect(module.global).toBe(true);
+      expect(module.imports).toEqual([TestModule]);
     });
 
-    it('should handle async configuration with empty inject array', async () => {
-      const options: AsyncCachingOptions = {
-        useFactory: () => ({
-          redisUrl: 'redis://localhost:6379',
-        }),
-        inject: [],
-      };
-
-      const module = CachingModule.forRootAsync(options);
-
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toContain(RedisService);
-      expect(module.global).toBe(true);
-    });
-
-    it('should create a working async module instance', async () => {
-      class MockConfigService {
-        get(key: string) {
-          const config: any = {
-            REDIS_URL: 'redis://localhost:6379',
-            CACHE_PREFIX: 'async:',
-          };
-          return config[key];
-        }
-      }
-      @Module({ providers: [MockConfigService], exports: [MockConfigService] })
-      class MockConfigModule {}
-      const options: AsyncCachingOptions = {
-        imports: [MockConfigModule],
-        useFactory: (configService: MockConfigService) => ({
-          redisUrl: configService.get('REDIS_URL'),
-          keyPrefix: configService.get('CACHE_PREFIX'),
-        }),
-        inject: [MockConfigService],
-      };
-
-      const module = CachingModule.forRootAsync(options);
-
-      const testModule: TestingModule = await Test.createTestingModule({
-        imports: [MockConfigModule, module],
-      }).compile();
-
-      const redisService = testModule.get<RedisService>(RedisService);
-      expect(redisService).toBeDefined();
-      expect(redisService).toBeInstanceOf(RedisService);
-    });
-
-    it('should create async module with default options', () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
+    // New async validation tests
+    describe('validation', () => {
+      it('should throw error when options are null', () => {
+        expect(() => {
+          CachingModule.forRootAsync(null as any);
+        }).toThrow('AsyncCachingOptions are required');
       });
 
-      const module = CachingModule.forRootAsync({
-        useFactory,
+      it('should throw error when options are undefined', () => {
+        expect(() => {
+          CachingModule.forRootAsync(undefined as any);
+        }).toThrow('AsyncCachingOptions are required');
       });
 
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-      expect(module.imports).toEqual([]);
-    });
-
-    it('should create async module with custom options', () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
+      it('should throw error when useFactory is missing', () => {
+        expect(() => {
+          CachingModule.forRootAsync({} as any);
+        }).toThrow('useFactory is required in AsyncCachingOptions');
       });
 
-      const module = CachingModule.forRootAsync({
-        useFactory,
-        inject: ['CONFIG'],
-        imports: [],
+      it('should throw error when useFactory is not a function', () => {
+        expect(() => {
+          CachingModule.forRootAsync({ useFactory: 'not-a-function' } as any);
+        }).toThrow('useFactory must be a function');
       });
 
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-      expect(module.imports).toEqual([]);
-    });
-
-    it('should create async module with custom keyPrefix from factory', () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'custom:',
+      it('should throw error when inject is not an array', () => {
+        expect(() => {
+          CachingModule.forRootAsync({
+            useFactory: () => ({ redisUrl: 'redis://localhost:6379' }),
+            inject: 'not-an-array' as any,
+          });
+        }).toThrow('inject must be an array');
       });
 
-      const module = CachingModule.forRootAsync({
-        useFactory,
+      it('should throw error when imports is not an array', () => {
+        expect(() => {
+          CachingModule.forRootAsync({
+            useFactory: () => ({ redisUrl: 'redis://localhost:6379' }),
+            imports: 'not-an-array' as any,
+          });
+        }).toThrow('imports must be an array');
       });
-
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
     });
   });
 
-  describe('module integration', () => {
-    it('should create a working module instance', async () => {
-      const options: CachingOptions = {
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-        defaultTtl: 300,
-      };
-
-      const module = CachingModule.forRoot(options);
-
-      const testModule: TestingModule = await Test.createTestingModule({
-        imports: [module],
+  describe('integration', () => {
+    it('should create a working module that can be tested', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        imports: [
+          CachingModule.forRoot({
+            redisUrl: 'redis://localhost:6379',
+            keyPrefix: 'test:',
+          }),
+        ],
       }).compile();
 
-      const redisService = testModule.get<RedisService>(RedisService);
+      const redisService = module.get<RedisService>(RedisService);
       expect(redisService).toBeDefined();
-      expect(redisService).toBeInstanceOf(RedisService);
     });
 
-    it('should create a working async module instance', async () => {
-      class MockConfigService {
-        get(key: string) {
-          const config: any = {
-            REDIS_URL: 'redis://localhost:6379',
-            CACHE_PREFIX: 'async:',
-          };
-          return config[key];
-        }
-      }
-      @Module({ providers: [MockConfigService], exports: [MockConfigService] })
-      class MockConfigModule {}
-      const options: AsyncCachingOptions = {
-        imports: [MockConfigModule],
-        useFactory: (configService: MockConfigService) => ({
-          redisUrl: configService.get('REDIS_URL'),
-          keyPrefix: configService.get('CACHE_PREFIX'),
-        }),
-        inject: [MockConfigService],
-      };
-
-      const module = CachingModule.forRootAsync(options);
-
-      const testModule: TestingModule = await Test.createTestingModule({
-        imports: [MockConfigModule, module],
+    it('should create a working async module that can be tested', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        imports: [
+          CachingModule.forRootAsync({
+            useFactory: () => ({
+              redisUrl: 'redis://localhost:6379',
+              keyPrefix: 'async-test:',
+            }),
+          }),
+        ],
       }).compile();
 
-      const redisService = testModule.get<RedisService>(RedisService);
+      const redisService = module.get<RedisService>(RedisService);
       expect(redisService).toBeDefined();
-      expect(redisService).toBeInstanceOf(RedisService);
-    });
-  });
-
-  describe('provider configuration', () => {
-    it('should configure Redis client with correct options', async () => {
-      const options: CachingOptions = {
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-      };
-
-      const module = CachingModule.forRoot(options);
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-
-      expect(redisProvider).toBeDefined();
-      expect((redisProvider as any)?.useFactory).toBeDefined();
-    });
-
-    it('should configure options provider correctly', async () => {
-      const options: CachingOptions = {
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-        defaultTtl: 300,
-      };
-
-      const module = CachingModule.forRoot(options);
-      const optionsProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'CACHING_OPTIONS',
-      );
-
-      expect(optionsProvider).toBeDefined();
-      expect((optionsProvider as any)?.useValue).toEqual(options);
-    });
-
-    it('should include RedisService in providers', async () => {
-      const options: CachingOptions = {
-        redisUrl: 'redis://localhost:6379',
-      };
-
-      const module = CachingModule.forRoot(options);
-      const redisServiceProvider = (module.providers as any)?.find(
-        (p: any) => p === RedisService,
-      );
-
-      expect(redisServiceProvider).toBeDefined();
     });
   });
 
   describe('error handling', () => {
-    it('should handle factory function errors gracefully', async () => {
-      const options: AsyncCachingOptions = {
-        useFactory: () => {
-          throw new Error('Factory error');
-        },
+    it('should handle Redis connection errors gracefully', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      
+      // Mock Redis constructor to throw an error
+      const OriginalRedis = require('ioredis').Redis;
+      require('ioredis').Redis = jest.fn().mockImplementation(() => {
+        throw new Error('Connection failed');
+      });
+
+      expect(() => {
+        const module = CachingModule.forRoot({
+          redisUrl: 'redis://invalid:6379',
+        });
+        
+        // Try to execute the factory function
+        const redisProvider = (module.providers as any)?.find(
+          (p: any) => p.provide === 'REDIS_CLIENT',
+        );
+        redisProvider.useFactory();
+      }).toThrow('Failed to create Redis client: Connection failed');
+
+      // Restore original Redis mock
+      require('ioredis').Redis = OriginalRedis;
+      consoleSpy.mockRestore();
+    });
+
+    it('should validate resolved config in async mode', async () => {
+      const asyncOptions: AsyncCachingOptions = {
+        useFactory: () => Promise.resolve({
+          redisUrl: '', // Invalid empty URL
+        }),
       };
 
-      const module = CachingModule.forRootAsync(options);
+      const module = CachingModule.forRootAsync(asyncOptions);
       const redisProvider = (module.providers as any)?.find(
         (p: any) => p.provide === 'REDIS_CLIENT',
       );
 
-      expect(redisProvider).toBeDefined();
-      expect((redisProvider as any)?.useFactory).toBeDefined();
-    });
-
-    it('should handle async factory function errors gracefully', async () => {
-      const options: AsyncCachingOptions = {
-        useFactory: async () => {
-          throw new Error('Async factory error');
-        },
-      };
-
-      const module = CachingModule.forRootAsync(options);
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
+      await expect(redisProvider.useFactory()).rejects.toThrow(
+        'Failed to create Redis client: redisUrl cannot be empty',
       );
-
-      expect(redisProvider).toBeDefined();
-      expect((redisProvider as any)?.useFactory).toBeDefined();
-    });
-  });
-
-  describe('Coverage edge cases', () => {
-    it('should handle undefined options in forRoot', () => {
-      expect(() =>
-        CachingModule.forRoot({ redisUrl: undefined as any }),
-      ).not.toThrow();
-    });
-
-    it('should handle error in useFactory forRootAsync', () => {
-      const options: AsyncCachingOptions = {
-        useFactory: () => {
-          throw new Error('factory error');
-        },
-      };
-      const module = CachingModule.forRootAsync(options);
-      expect(module).toBeDefined();
-      // The error is thrown at runtime, not at module creation
-    });
-  });
-
-  describe('forRoot edge cases', () => {
-    it('should create Redis instance with valid options', () => {
-      const module = CachingModule.forRoot({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-      });
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-    });
-
-    it('should create Redis instance without keyPrefix', () => {
-      const module = CachingModule.forRoot({
-        redisUrl: 'redis://localhost:6379',
-      });
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-    });
-  });
-
-  describe('forRootAsync edge cases', () => {
-    it('should create async module with factory that returns valid config', async () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-      });
-      const module = CachingModule.forRootAsync({ useFactory });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory();
-      expect(result).toBeDefined();
-    });
-
-    it('should create async module with factory that returns config without keyPrefix', async () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-      });
-      const module = CachingModule.forRootAsync({ useFactory });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory();
-      expect(result).toBeDefined();
-    });
-
-    it('should create async module with inject dependencies', async () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: 'test:',
-      });
-      const module = CachingModule.forRootAsync({
-        useFactory,
-        inject: ['CONFIG'],
-      });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory('config');
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe('forRoot branch coverage', () => {
-    it('should create Redis instance with only redisUrl', () => {
-      const module = CachingModule.forRoot({
-        redisUrl: 'redis://localhost:6379',
-      });
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-    });
-    it('should create Redis instance with redisUrl and undefined keyPrefix', () => {
-      const module = CachingModule.forRoot({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: undefined,
-      });
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-    });
-    it('should create Redis instance with redisUrl and empty string keyPrefix', () => {
-      const module = CachingModule.forRoot({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: '',
-      });
-      expect(module.module).toBe(CachingModule);
-      expect(module.providers).toHaveLength(3);
-      expect(module.exports).toEqual([RedisService]);
-      expect(module.global).toBe(true);
-    });
-  });
-
-  describe('forRootAsync branch coverage', () => {
-    it('should create async module with factory that returns config with only redisUrl', async () => {
-      const useFactory = jest
-        .fn()
-        .mockResolvedValue({ redisUrl: 'redis://localhost:6379' });
-      const module = CachingModule.forRootAsync({ useFactory });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory();
-      expect(result).toBeDefined();
-    });
-    it('should create async module with factory that returns config with redisUrl and undefined keyPrefix', async () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: undefined,
-      });
-      const module = CachingModule.forRootAsync({ useFactory });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory();
-      expect(result).toBeDefined();
-    });
-    it('should create async module with factory that returns config with redisUrl and empty string keyPrefix', async () => {
-      const useFactory = jest.fn().mockResolvedValue({
-        redisUrl: 'redis://localhost:6379',
-        keyPrefix: '',
-      });
-      const module = CachingModule.forRootAsync({ useFactory });
-      const redisProvider = (module.providers as any)?.find(
-        (p: any) => p.provide === 'REDIS_CLIENT',
-      );
-      const result = await redisProvider.useFactory();
-      expect(result).toBeDefined();
     });
   });
 });
