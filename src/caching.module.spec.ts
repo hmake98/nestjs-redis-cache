@@ -195,6 +195,23 @@ describe('CachingModule', () => {
       expect(module.global).toBe(true);
     });
 
+    it('should resolve Redis client with default keyPrefix', async () => {
+      const asyncOptions: AsyncCachingOptions = {
+        useFactory: () => ({ redisUrl: 'redis://localhost:6379' }),
+      };
+
+      const module = CachingModule.forRootAsync(asyncOptions);
+      const redisProvider = (module.providers as any).find(
+        (p: any) => p.provide === 'REDIS_CLIENT',
+      );
+      const RedisMock = require('ioredis').Redis as jest.Mock;
+      await redisProvider.useFactory();
+      expect(RedisMock).toHaveBeenCalledWith(
+        'redis://localhost:6379',
+        expect.objectContaining({ keyPrefix: '' }),
+      );
+    });
+
     it('should create module with inject dependencies', () => {
       const asyncOptions: AsyncCachingOptions = {
         useFactory: (configService: any) => ({

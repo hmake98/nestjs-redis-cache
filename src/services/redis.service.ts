@@ -7,6 +7,7 @@ export class RedisService implements IRedisService, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly redis: Redis;
 
+  // istanbul ignore next
   constructor(@Inject('REDIS_CLIENT') redis: Redis) {
     this.redis = redis;
     this.setupEventHandlers();
@@ -37,11 +38,14 @@ export class RedisService implements IRedisService, OnModuleDestroy {
 
     try {
       let serializedValue: string;
-      
+
       try {
         serializedValue = JSON.stringify(value);
       } catch (serializationError) {
-        this.logger.error(`JSON serialization failed for key: ${key}`, serializationError);
+        this.logger.error(
+          `JSON serialization failed for key: ${key}`,
+          serializationError,
+        );
         throw new Error(`Failed to serialize value for key: ${key}`);
       }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Cacheable } from './cacheable.decorator';
 import { Logger } from '@nestjs/common';
 
@@ -162,7 +163,9 @@ describe('Cacheable Decorator', () => {
           @Cacheable({ key: 'test' })
           property = 'value';
         }
-      }).toThrow('@Cacheable can only be applied to methods, but property is not a method');
+      }).toThrow(
+        '@Cacheable can only be applied to methods, but property is not a method',
+      );
     });
   });
 
@@ -281,6 +284,43 @@ describe('Cacheable Decorator', () => {
     });
   });
 
+  describe('decorator application', () => {
+    it('should throw when applied to non-method property', () => {
+      const decorator = Cacheable({ key: 'test:key' });
+      const descriptor: any = { value: 123 };
+      expect(() => decorator({}, 'prop', descriptor)).toThrow(
+        '@Cacheable can only be applied to methods, but prop is not a method',
+      );
+    });
+
+    it('should skip caching when module scope lacks moduleName at runtime', async () => {
+      const options: any = {
+        key: 'test:key',
+        scope: 'module',
+        moduleName: 'TestModule',
+      };
+
+      class TestRuntimeClass {
+        redisService = mockRedisService;
+
+        @Cacheable(options)
+        async getData() {
+          return 'runtime';
+        }
+      }
+
+      const instance = new TestRuntimeClass();
+      options.moduleName = undefined;
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+      const result = await instance.getData();
+      expect(result).toBe('runtime');
+      expect(mockRedisService.get).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+  });
+
   describe('scoped keys', () => {
     it('should handle module scope with moduleName', async () => {
       mockRedisService.get.mockResolvedValue(null);
@@ -322,7 +362,7 @@ describe('Cacheable Decorator', () => {
       }
 
       const testInstance = new TestClassNoRedis();
-      
+
       // Mock the logger to suppress warning output during test
       jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
@@ -340,7 +380,7 @@ describe('Cacheable Decorator', () => {
       }
 
       const testInstance = new TestClassUndefinedRedis();
-      
+
       // Mock the logger to suppress warning output during test
       jest.spyOn(Logger.prototype, 'warn').mockImplementation();
 
@@ -380,7 +420,9 @@ describe('Cacheable Decorator', () => {
       // Mock the logger to suppress error output during test
       jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
-      await expect(testClass.getDataWithError()).rejects.toThrow('Method error');
+      await expect(testClass.getDataWithError()).rejects.toThrow(
+        'Method error',
+      );
     });
 
     it('should handle errors in original method after cache operations fail', async () => {
@@ -389,7 +431,9 @@ describe('Cacheable Decorator', () => {
       // Mock the logger to suppress error output during test
       jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
-      await expect(testClass.getDataWithError()).rejects.toThrow('Method error');
+      await expect(testClass.getDataWithError()).rejects.toThrow(
+        'Method error',
+      );
     });
   });
 
@@ -471,7 +515,9 @@ describe('Cacheable Decorator', () => {
 
   describe('logging', () => {
     it('should log cache hit', async () => {
-      const loggerSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation();
       mockRedisService.get.mockResolvedValue({ data: 'cached' });
 
       await testClass.getData();
@@ -481,7 +527,9 @@ describe('Cacheable Decorator', () => {
     });
 
     it('should log cache miss', async () => {
-      const loggerSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation();
       mockRedisService.get.mockResolvedValue(null);
 
       await testClass.getData();
@@ -491,17 +539,23 @@ describe('Cacheable Decorator', () => {
     });
 
     it('should log successful cache set', async () => {
-      const loggerSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation();
       mockRedisService.get.mockResolvedValue(null);
 
       await testClass.getData();
 
-      expect(loggerSpy).toHaveBeenCalledWith('Cached result for key: test:key with TTL: 60');
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Cached result for key: test:key with TTL: 60',
+      );
       loggerSpy.mockRestore();
     });
 
     it('should log when not caching null/undefined results', async () => {
-      const loggerSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation();
       mockRedisService.get.mockResolvedValue(null);
 
       class TestClassNull {
@@ -516,7 +570,9 @@ describe('Cacheable Decorator', () => {
       const testInstance = new TestClassNull();
       await testInstance.getData();
 
-      expect(loggerSpy).toHaveBeenCalledWith('Not caching null/undefined result for key: test:null');
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Not caching null/undefined result for key: test:null',
+      );
       loggerSpy.mockRestore();
     });
   });
