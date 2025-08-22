@@ -84,6 +84,11 @@ describe('KeyGenerator', () => {
       expect(key).toBe('myapp:user:profile');
     });
 
+    it('should use empty prefix by default', () => {
+      const key = generatePrefixedCacheKey('user:profile');
+      expect(key).toBe('user:profile');
+    });
+
     it('should handle empty key with prefix', () => {
       const key = generatePrefixedCacheKey('', 'myapp:', 'global');
       expect(key).toBe('myapp:');

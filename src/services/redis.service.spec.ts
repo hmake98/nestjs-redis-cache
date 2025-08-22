@@ -138,9 +138,9 @@ describe('RedisService', () => {
     });
 
     it('should throw error for non-number TTL', async () => {
-      await expect(service.set('key', 'value', 'invalid' as any)).rejects.toThrow(
-        'TTL must be a positive number',
-      );
+      await expect(
+        service.set('key', 'value', 'invalid' as any),
+      ).rejects.toThrow('TTL must be a positive number');
     });
 
     it('should handle JSON serialization errors', async () => {
@@ -183,9 +183,7 @@ describe('RedisService', () => {
 
       mockRedis.get.mockRejectedValue(error);
 
-      await expect(service.get(key)).rejects.toThrow(
-        'Redis connection failed',
-      );
+      await expect(service.get(key)).rejects.toThrow('Redis connection failed');
     });
 
     // New validation tests
@@ -228,9 +226,7 @@ describe('RedisService', () => {
 
       mockRedis.del.mockRejectedValue(error);
 
-      await expect(service.del(key)).rejects.toThrow(
-        'Redis connection failed',
-      );
+      await expect(service.del(key)).rejects.toThrow('Redis connection failed');
     });
 
     // New validation tests
@@ -366,9 +362,7 @@ describe('RedisService', () => {
 
       mockRedis.ttl.mockRejectedValue(error);
 
-      await expect(service.ttl(key)).rejects.toThrow(
-        'Redis connection failed',
-      );
+      await expect(service.ttl(key)).rejects.toThrow('Redis connection failed');
     });
 
     // New validation tests
@@ -557,12 +551,67 @@ describe('RedisService', () => {
   describe('setupEventHandlers', () => {
     it('should set up Redis event handlers', () => {
       // Event handlers are set up in constructor, so verify they were called
-      expect(mockRedis.on).toHaveBeenCalledWith('connect', expect.any(Function));
+      expect(mockRedis.on).toHaveBeenCalledWith(
+        'connect',
+        expect.any(Function),
+      );
       expect(mockRedis.on).toHaveBeenCalledWith('ready', expect.any(Function));
       expect(mockRedis.on).toHaveBeenCalledWith('error', expect.any(Function));
       expect(mockRedis.on).toHaveBeenCalledWith('close', expect.any(Function));
-      expect(mockRedis.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
+      expect(mockRedis.on).toHaveBeenCalledWith(
+        'reconnecting',
+        expect.any(Function),
+      );
       expect(mockRedis.on).toHaveBeenCalledWith('end', expect.any(Function));
+    });
+
+    it('should execute event handlers when events occur', () => {
+      const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      const handlers = Object.fromEntries(mockRedis.on.mock.calls);
+
+      handlers.connect();
+      handlers.ready();
+      handlers.error(new Error('test'));
+      handlers.close();
+      handlers.reconnecting(500);
+      handlers.end();
+
+      expect(logSpy).toHaveBeenCalledWith('Connected to Redis');
+      expect(logSpy).toHaveBeenCalledWith('Redis client ready');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Redis connection error',
+        expect.any(Error),
+      );
+      expect(warnSpy).toHaveBeenCalledWith('Redis connection closed');
+      expect(logSpy).toHaveBeenCalledWith('Reconnecting to Redis in 500ms...');
+      expect(warnSpy).toHaveBeenCalledWith('Redis connection ended');
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('constructor metadata', () => {
+    it('should handle missing Redis export', () => {
+      jest.resetModules();
+      jest.doMock('ioredis', () => ({}));
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { RedisService: RS } = require('./redis.service');
+      const dummyRedis: any = {
+        on: jest.fn(),
+        quit: jest.fn(),
+        disconnect: jest.fn(),
+      };
+      const instance = new RS(dummyRedis);
+      expect(instance).toBeDefined();
+      jest.dontMock('ioredis');
+      jest.resetModules();
     });
   });
 });
