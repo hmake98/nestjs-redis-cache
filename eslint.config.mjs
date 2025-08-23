@@ -15,6 +15,7 @@ export default tseslint.config(
       'coverage/**',
       'node_modules/**',
       'eslint.config.js',
+      'eslint.config.mjs',
       '.eslintrc.js'
     ]
   },
@@ -49,7 +50,7 @@ export default tseslint.config(
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }
       ],
       '@typescript-eslint/no-explicit-any': 'off'
     }
@@ -91,5 +92,6 @@ export default tseslint.config(
   // Disable formatting-related rules; delegate to Prettier
   prettier
 );
+
 
 
