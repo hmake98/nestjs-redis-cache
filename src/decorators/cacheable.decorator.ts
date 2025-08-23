@@ -28,13 +28,13 @@ export function Cacheable(options: CacheableOptions & { moduleName?: string }) {
     }
 
     descriptor.value = async function (...args: any[]) {
-      let scope = options.scope || 'global';
+      const scope = options.scope || 'global';
       const moduleName = (options as any).moduleName;
       
       // Validate scope and moduleName combination
       if (scope === 'module' && !moduleName) {
         logger.error(
-          `@Cacheable: module scope requires moduleName for key '${options.key}' in method '${propertyKey}'. Falling back to executing original method without caching.`,
+          `@Cacheable decorator error: module scope requires moduleName for key '${options.key}' in method '${target.constructor.name}.${propertyKey}'. Falling back to executing original method without caching.`,
         );
         return await originalMethod.apply(this, args);
       }
@@ -50,46 +50,63 @@ export function Cacheable(options: CacheableOptions & { moduleName?: string }) {
       // Check if RedisService is available
       if (!this.redisService) {
         logger.warn(
-          `@Cacheable: RedisService not available for method '${propertyKey}'. Falling back to original method.`,
+          `@Cacheable decorator warning: RedisService not available for method '${target.constructor.name}.${propertyKey}'. Ensure CachingModule is properly imported. Falling back to original method.`,
         );
         return await originalMethod.apply(this, args);
       }
+
+      const startTime = Date.now();
+      logger.debug(`@Cacheable: Attempting cache lookup for method '${target.constructor.name}.${propertyKey}' with key: ${cacheKey}`);
 
       try {
         // Try to get from cache first
         const cachedValue = await this.redisService.get(cacheKey);
 
         if (cachedValue !== null && cachedValue !== undefined) {
+          const duration = Date.now() - startTime;
+          logger.debug(`@Cacheable: Cache hit for key: ${cacheKey} (${duration}ms) - method '${target.constructor.name}.${propertyKey}'`);
+          // Minimal log expected by tests
           logger.debug(`Cache hit for key: ${cacheKey}`);
           return cachedValue;
         }
 
         // Cache miss, execute original method
+        logger.debug(`@Cacheable: Cache miss for key: ${cacheKey} - executing original method '${target.constructor.name}.${propertyKey}'`);
+        // Minimal log expected by tests
         logger.debug(`Cache miss for key: ${cacheKey}`);
+        const methodStartTime = Date.now();
         const result = await originalMethod.apply(this, args);
+        const methodDuration = Date.now() - methodStartTime;
 
         // Cache the result if it's not null or undefined
         if (result !== undefined && result !== null) {
           const ttl = options.ttl || 300; // Default TTL
           try {
             await this.redisService.set(cacheKey, result, ttl);
+            const totalDuration = Date.now() - startTime;
+            logger.debug(`@Cacheable: Cached result for key: ${cacheKey} with TTL: ${ttl}s - method execution: ${methodDuration}ms, total: ${totalDuration}ms`);
+            // Minimal log expected by tests
             logger.debug(`Cached result for key: ${cacheKey} with TTL: ${ttl}`);
           } catch (cacheError) {
-            logger.error(`Failed to cache result for key: ${cacheKey}`, cacheError);
+            logger.error(`@Cacheable: Failed to cache result for key: ${cacheKey} from method '${target.constructor.name}.${propertyKey}'`, cacheError);
             // Don't throw here, just log the error and return the result
           }
         } else {
+          logger.debug(`@Cacheable: Not caching null/undefined result for key: ${cacheKey} from method '${target.constructor.name}.${propertyKey}'`);
+          // Minimal log expected by tests
           logger.debug(`Not caching null/undefined result for key: ${cacheKey}`);
         }
 
         return result;
       } catch (error) {
-        logger.error(`Error in cacheable method '${propertyKey}':`, error);
+        const duration = Date.now() - startTime;
+        logger.error(`@Cacheable: Error in cached method '${target.constructor.name}.${propertyKey}' after ${duration}ms:`, error);
         // Fallback to original method on any error
         try {
+          logger.debug(`@Cacheable: Falling back to original method '${target.constructor.name}.${propertyKey}' due to cache error`);
           return await originalMethod.apply(this, args);
         } catch (originalError) {
-          logger.error(`Original method '${propertyKey}' also failed:`, originalError);
+          logger.error(`@Cacheable: Original method '${target.constructor.name}.${propertyKey}' also failed:`, originalError);
           throw originalError;
         }
       }
